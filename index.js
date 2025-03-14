@@ -3,7 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 3000;
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 //middleware
 app.use(cors());
@@ -55,17 +55,21 @@ app.get("/events", async (req, res) => {
 });
 
 app.get("/events/:id", async (req, res) => {
-  const id = req.params.id;
+  const { id } = req.params;
+
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).send({ message: "Invalid Event ID" });
+  }
+
   try {
-    const eventData = await eventCollection.findOne({
-      _id: new ObjectId(id),
-    });
+    const eventData = await eventCollection.findOne({ _id: new ObjectId(id) });
+
     if (!eventData) {
       return res.status(404).send({ message: "Event not found" });
     }
     res.send(eventData);
   } catch (error) {
-    console.error("Error fetching Event details:", error);
+    console.error("Error fetching event details:", error);
     res.status(500).send({ message: "Failed to fetch Event details", error });
   }
 });
