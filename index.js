@@ -25,6 +25,19 @@ async function run() {
     const userCollection = client.db('ezyTicket').collection('users')
     const eventCollection = client.db('ezyTicket').collection('events')
 
+    //  -------------User API-------------
+    app.post('/api/user', async (req,res)=>{
+      const user = res.body;
+      const query = {email: user.email}
+      const existingUser = await userCollection.findOne(query);
+      if(existingUser){
+        return res.send({ message: 'User already exists', insertedId: null})
+      }
+      const result = await userCollection.post(user);
+
+      res.send(result)
+
+    })
 
     // ------------Events API-------------
     app.get("/", (req, res) => {
