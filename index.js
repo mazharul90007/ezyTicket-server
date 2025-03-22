@@ -98,6 +98,7 @@ async function run() {
       res.send("EzyTicket server is Running");
     });
 
+    // this is event Api //
     app.get("/events", async (req, res) => {
       if (!eventCollection) {
         return res.status(500).send({ message: "Database not initialized" });
@@ -119,7 +120,9 @@ async function run() {
       res.send(result);
     });
 
-    // -------------Tavel API----------------
+    // Events Api ends here//
+
+    // -------------Travel API----------------
 
     await client.db("admin").command({ ping: 1 });
     console.log(
