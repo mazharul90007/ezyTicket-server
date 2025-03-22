@@ -1,16 +1,29 @@
 const express = require("express");
-const cors = require("cors");
 require("dotenv").config();
+const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const app = express();
 const port = process.env.PORT || 3000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 //middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5174",
+      "http://localhost:5173",
+      "http://localhost:3000",
+    ],
+    credentials: true,
+    optionsSuccessStatus: 200,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
-// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ome3u.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
-const uri = `${process.env.DB_uri}`
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ome3u.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+// const uri = `${process.env.DB_uri}`
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -19,26 +32,66 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+const verifyToken = (req, res, next) => {
+  const token = req.cookies?.token;
+  if (!token) return res.status(401).send({ message: "Unauthorized Access" });
+  jwt.verify(token, process.env.JWT_SECRET_TOKEN, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "Unauthorized Access" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
+
 async function run() {
   try {
     await client.connect();
     // Send a ping to confirm a successful connection
-    const userCollection = client.db('ezyTicket').collection('users')
-    const eventCollection = client.db('ezyTicket').collection('events')
+    const userCollection = client.db("ezyTicket").collection("users");
+    const eventCollection = client.db("ezyTicket").collection("events");
 
     //  -------------User API-------------
-    app.post('/api/user', async (req,res)=>{
+    app.post("/api/user", async (req, res) => {
       const user = res.body;
-      const query = {email: user.email}
+      const query = { email: user.email };
       const existingUser = await userCollection.findOne(query);
-      if(existingUser){
-        return res.send({ message: 'User already exists', insertedId: null})
+      if (existingUser) {
+        return res.send({ message: "User already exists", insertedId: null });
       }
       const result = await userCollection.post(user);
 
-      res.send(result)
-
-    })
+      res.send(result);
+    });
+    /* --------------------------------------------------------------
+                                JWT STARTS HERE
+    -------------------------------------------------------------- */
+    // working on jwt dont touch anything
+    app.post("/jwt", async (req, res) => {
+      const email = req.body;
+      const token = jwt.sign(email, process.env.JWT_SECRET_TOKEN, {
+        expiresIn: "24hr",
+      });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .send({ success: true });
+    });
+    // remove token from brouser  cookie
+    app.post("/logout", async (req, res) => {
+      const user = req.body;
+      res
+        .clearCookie("token", { maxAge: 0, sameSite: "none", secure: true })
+        .send({ success: true });
+    });
+    // jwt Related Work ends here dont touch anything jwt related code
+    /* --------------------------------------------------------------
+                                JWT ENDS HERE
+    -------------------------------------------------------------- */
 
     // ------------Events API-------------
     app.get("/", (req, res) => {
@@ -59,13 +112,12 @@ async function run() {
     });
 
     app.get("/events/:id", async (req, res) => {
-      const id  = req.params.id;
+      const id = req.params.id;
       console.log(id);
-      const query = { _id: new ObjectId(id)}
+      const query = { _id: new ObjectId(id) };
       const result = await eventCollection.findOne(query);
-      res.send(result)
+      res.send(result);
     });
-
 
     // -------------Tavel API----------------
 
@@ -79,8 +131,6 @@ async function run() {
   }
 }
 run().catch(console.dir);
-
-
 
 app.listen(port, () => {
   console.log(`EzyTicket is running on ${port}`);
