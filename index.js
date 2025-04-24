@@ -730,6 +730,38 @@ async function run() {
       res.send(result)
     })
 
+
+    app.get('/api/buses', async(req, res) => {
+      const email = req.query.email;
+      console.log(userEmail)
+      if (!userEmail) {
+        return res.status(400).json({ message: 'Email query parameter is required' });
+      }
+    const query = {userEmail: email}
+      
+        const buses = await busServiceCollection.find(query).toArray();
+       
+        res.status(500).send(buses);
+      
+    })
+
+
+    app.get("/api/searchBus", async (req, res) => {
+      const from = req.query.from;
+      const to = req.query.to;
+    
+      try {
+        const buses = await busServiceCollection.find({
+          from: { $regex: from, $options: "i" },
+          to: { $regex: to, $options: "i" },
+        }).toArray();
+    
+        res.send(buses);
+      } catch (err) {
+        res.status(500).send({ error: "Failed to fetch buses" });
+      }
+    });
+
     // -------------Tavel API End----------------
 
     // await client.db("admin").command({ ping: 1 });
