@@ -82,7 +82,15 @@ async function run() {
       .db("ezyTicket")
       .collection("cinemahalls");
     const moviesCollection = client.db("ezyTicket").collection("allMovies");
-    const busServiceCollection = client.db('ezyTicket').collection("busServices")
+    const busServiceCollection = client
+      .db("ezyTicket")
+      .collection("busServices");
+    const busPaymentCollection = client
+      .db("ezyTicket")
+      .collection("busPayments");
+    const busFlashDealCollection = client
+      .db("ezyTicket")
+      .collection("travelFlashDeals");
 
     app.get("/", (req, res) => {
       res.send("EzyTicket server is Running");
@@ -434,6 +442,49 @@ async function run() {
       res.send(result);
     });
 
+    // delete a cinema hall
+    app.delete("/cinemahalls/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await cinemaHallCollection.deleteOne(query);
+      res.send(result);
+    });
+    // get a specific cinema hall by id
+    app.get("/cinemahalls/:id", async (req, res) => {
+      const id = req.params.id;
+      const hall = await cinemaHallCollection.findOne({
+        _id: new ObjectId(id),
+      });
+      res.send(hall);
+    });
+
+    // update a specific cinema hall data in the database
+    app.patch("/allhalls/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedHall = req.body;
+
+      try {
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: {
+            name: updatedHall.name,
+            location: updatedHall.location,
+            totalSeats: updatedHall.totalSeats,
+            price: updatedHall.price,
+            facilities: updatedHall.facilities,
+            email: updatedHall.email,
+            image: updatedHall.image,
+          },
+        };
+
+        const result = await cinemaHallCollection.updateOne(filter, updateDoc);
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating hall:", error.message);
+        res.status(500).send({ error: "Failed to update hall" });
+      }
+    });
+
     app.post("/allmovies", async (req, res) => {
       try {
         const movie = req.body;
@@ -461,6 +512,36 @@ async function run() {
       const movie = await moviesCollection.findOne({ _id: new ObjectId(id) });
       res.send(movie);
     });
+    // update a specific movie data in the database
+    app.patch("/allmovies/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedMovie = req.body;
+
+      try {
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: {
+            name: updatedMovie.name,
+            description: updatedMovie.description,
+            duration: updatedMovie.duration,
+            category: updatedMovie.category,
+            genre: updatedMovie.genre,
+            actors: updatedMovie.actors,
+            releaseDate: updatedMovie.releaseDate,
+            language: updatedMovie.language,
+            director: updatedMovie.director,
+            imageLink: updatedMovie.imageLink,
+            cinemaHalls: updatedMovie.cinemaHalls,
+          },
+        };
+
+        const result = await moviesCollection.updateOne(filter, updateDoc);
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating movie:", error.message);
+        res.status(500).send({ error: "Failed to update movie" });
+      }
+    });
 
     // ------------Events API-------------
     app.get("/events", async (req, res) => {
@@ -469,6 +550,20 @@ async function run() {
       }
       try {
         const events = await eventCollection.find({}).toArray();
+        res.send(events);
+      } catch (error) {
+        console.error("Error fetching events:", error);
+        res.status(500).send({ message: "Failed to fetch events", error });
+      }
+    });
+
+    // Advertise event api
+    app.get("/topEvents", async (req, res) => {
+      if (!eventCollection) {
+        return res.status(500).send({ message: "Database not initialized" });
+      }
+      try {
+        const events = await eventCollection.find({ advertise: true }).toArray();
         res.send(events);
       } catch (error) {
         console.error("Error fetching events:", error);
@@ -542,6 +637,7 @@ async function run() {
     app.post("/event-reviews", async (req, res) => {
       const {
         eventId,
+        eventName,
         comment,
         customerEmail,
         customerName,
@@ -559,6 +655,7 @@ async function run() {
         const review = {
           eventId: new ObjectId(eventId),
           comment,
+          eventName,
           customerEmail,
           customerName,
           customerPhoto,
@@ -587,13 +684,17 @@ async function run() {
         res.status(500).send({ message: "Failed to fetch events", error });
       }
     });
-    // Verify a review
+
+    // Example Express route
     app.patch("/verifyEvent/:id", async (req, res) => {
       const id = req.params.id;
-      const result = await eventReviewCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: { status: req.body.status } }
-      );
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: req.body.status, // should be 'verified'
+        },
+      };
+      const result = await eventReviewsCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
 
@@ -705,8 +806,6 @@ async function run() {
       if (previousSeat) {
         allSeat = [...previousSeat, ...newSeat];
       }
-
-      console.log("-------------------------------------------------", allSeat);
       const updateResult = await busTicketCollection.updateOne(query, {
         $set: { bookedSeats: allSeat },
       });
@@ -714,21 +813,25 @@ async function run() {
       res.send({ result, updateResult });
     });
 
-
-
     //bus services added from here
 
-    app.post('/busServices', async(req, res) => {
+    app.post("/busServices", async (req, res) => {
       const busService = req.body;
-      const result = await busServiceCollection.insertOne(busService)
-      res.status(200).send({message: 'bus added to database'})
-    })
+      const result = await busServiceCollection.insertOne(busService);
+      res.status(200).send({ message: "bus added to database" });
+    });
 
+    app.get("/busServices", async (req, res) => {
+      const result = await busServiceCollection.find().toArray();
+      res.send(result);
+    });
 
-    app.get('/busServices', async(req, res) => {
-      const result = await busServiceCollection.find().toArray()
-      res.send(result)
-    })
+    // flash deals api
+    app.get("/bus-flash-deal", async (req, res) => {
+      const result = await busFlashDealCollection.find().toArray();
+      // console.log(result)
+      res.send(result);
+    });
 
 
     app.get('/api/buses', async(req, res) => {
@@ -763,6 +866,28 @@ async function run() {
     });
 
     // -------------Tavel API End----------------
+
+    // ------------- Stripe Payment----------
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+
+      if (!price) {
+        return;
+      }
+
+      const amount = parseInt(price * 100);
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"]
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      })
+    })
+    // ------------- Stripe Payment----------
 
     // await client.db("admin").command({ ping: 1 });
     // console.log(
