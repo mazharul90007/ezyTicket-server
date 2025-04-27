@@ -831,14 +831,12 @@ async function run() {
 
     app.post("/busServices", async (req, res) => {
       const busService = req.body;
-      const result = await busServiceCollection.insertOne(busService);
-      res.status(200).send({ message: "bus added to database" });
+      console.log(req.body)
+      const result = await busTicketCollection.insertOne(busService);
+      res.status(200).send(result);
     });
 
-    app.get("/busServices", async (req, res) => {
-      const result = await busServiceCollection.find().toArray();
-      res.send(result);
-    });
+  
 
     // flash deals api
     app.get("/bus-flash-deal", async (req, res) => {
@@ -849,19 +847,17 @@ async function run() {
 
 
     app.get('/api/buses', async(req, res) => {
-      const email = req.query.email;
-      console.log(email)
-      if (!email) {
-        return res.status(400).json({ message: 'Email query parameter is required' });
-      }
-    const query = {userEmail: email}
-      
-        const buses = await busServiceCollection.find(query).toArray();
-       
-        res.status(500).send(buses);
+        const buses = await busTicketCollection.find().toArray();
+        res.status(200).send(buses);
       
     })
-
+    app.get('/api/buses/:id', async(req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const data = await busTicketCollection.findOne(query)
+      console.log(id)
+      res.status(200).send(data)
+    })
 
     app.get("/api/searchBus", async (req, res) => {
       const from = req.query.from;
