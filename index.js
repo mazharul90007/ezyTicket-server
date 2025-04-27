@@ -850,8 +850,8 @@ async function run() {
 
     app.get('/api/buses', async(req, res) => {
       const email = req.query.email;
-      console.log(userEmail)
-      if (!userEmail) {
+      console.log(email)
+      if (!email) {
         return res.status(400).json({ message: 'Email query parameter is required' });
       }
     const query = {userEmail: email}
