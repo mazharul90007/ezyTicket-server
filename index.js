@@ -927,38 +927,52 @@ async function run() {
       res.send({ result, updateResult });
     });
 
-    // payment Collection
-    app.get("/payment/:id", async (req, res) => {
-      const transactionId = req.params.id;
-      const query = { transactionId: transactionId };
-      const result = await busPaymentCollection.findOne(query);
-      res.send(result);
-    });
-
-    // sold Tickets api
-    app.get("/sold-ticket", async (req,res)=>{
-      const result = await busPaymentCollection.find().toArray();
-      res.send(result);
-    })
-
     //bus services added from here
 
     app.post("/busServices", async (req, res) => {
       const busService = req.body;
-      const result = await busServiceCollection.insertOne(busService);
-      res.status(200).send({ message: "bus added to database" });
+      console.log(req.body)
+      const result = await busTicketCollection.insertOne(busService);
+      res.status(200).send(result);
     });
 
-    app.get("/busServices", async (req, res) => {
-      const result = await busServiceCollection.find().toArray();
-      res.send(result);
-    });
+  
 
     // flash deals api
     app.get("/bus-flash-deal", async (req, res) => {
       const result = await busFlashDealCollection.find().toArray();
       // console.log(result)
       res.send(result);
+    });
+
+
+    app.get('/api/buses', async(req, res) => {
+        const buses = await busTicketCollection.find().toArray();
+        res.status(200).send(buses);
+      
+    })
+    app.get('/api/buses/:id', async(req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const data = await busTicketCollection.findOne(query)
+      console.log(id)
+      res.status(200).send(data)
+    })
+
+    app.get("/api/searchBus", async (req, res) => {
+      const from = req.query.from;
+      const to = req.query.to;
+    
+      try {
+        const buses = await busServiceCollection.find({
+          from: { $regex: from, $options: "i" },
+          to: { $regex: to, $options: "i" },
+        }).toArray();
+    
+        res.send(buses);
+      } catch (err) {
+        res.status(500).send({ error: "Failed to fetch buses" });
+      }
     });
 
     // -------------Tavel API End----------------
